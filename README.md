@@ -14,6 +14,6 @@ KTHW = "Kubernetes the hard way" (a cloud guru)
 
 [Notes from KDD](guides/kdd.md)
 
-Put stupid stuff on K8s
+Your first nontrivial k8s architecture (todo)
 
-AWS EKS survival guide
+[AWS EKS survival guide](guides/eks.md) (todo)

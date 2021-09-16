@@ -297,30 +297,30 @@ Now deploy
 
 then check a few things:
 ```
-        kubectl get deploy
-        # shows desired 1, available 0. How come?
-        # Lack of resources...? let's check
+kubectl get deploy
+# shows desired 1, available 0. How come?
+# Lack of resources...? let's check
 
-        kubectl get pods
-        # shows pending for that one pod. Why?
+kubectl get pods
+# shows pending for that one pod. Why?
 
-        kubectl describe pods
-        # gives a "insufficient cpu" warning of type 'failed scheduling'
-        # indeed you can see a new node being started! With:
-        kubectl get nodes
-        # see one ready and the new one (age=few seconds and NotReady status)
+kubectl describe pods
+# gives a "insufficient cpu" warning of type 'failed scheduling'
+# indeed you can see a new node being started! With:
+kubectl get nodes
+# see one ready and the new one (age=few seconds and NotReady status)
 
-        # in a little while the new node is -> Ready
-        # so now 'get deploy' finally shows the deploy has available=1, desired=1
+# in a little while the new node is -> Ready
+# so now 'get deploy' finally shows the deploy has available=1, desired=1
 
-        # for fun, make it 10 replicas (editing the manifest)
-        # re-apply
-        kubectl get deploy # you see desired=10, available=1
+# for fun, make it 10 replicas (editing the manifest)
+# re-apply
+kubectl get deploy # you see desired=10, available=1
 
-        # Will new nodes be created?
-        kubectl get nodes --watch
-        # in a few seconds a lot more appear! and you see them in the cloud provider's k8s service's cluster nodes view
-        #   (at first as 'being created' or something)
+# Will new nodes be created?
+kubectl get nodes --watch
+# in a few seconds a lot more appear! and you see them in the cloud provider's k8s service's cluster nodes view
+#   (at first as 'being created' or something)
 ```
 
 ### Section 9 - RBAC and admission control
@@ -408,11 +408,11 @@ We want to give it power of get/list/watch pods; role named 'acgrbac'
 
 Note: the role manifest could have had
 
-      ...
-      rules:
-      - apiGroups: ["", "apps"]
-        resources: ["deployments", "replicasets", "pods"]
-        verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+    ...
+    rules:
+    - apiGroups: ["", "apps"]
+      resources: ["deployments", "replicasets", "pods"]
+      verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
 
 and with `"*"` you can denote ALL API groups, ALL resources, ALL verbs.
 
