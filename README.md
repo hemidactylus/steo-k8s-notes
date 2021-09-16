@@ -10,7 +10,7 @@ KTHW = "Kubernetes the hard way" (a cloud guru)
 
 ### Topics
 
-[Bonsai Kuberneteses](guides/bonsai)
+[Bonsai Kuberneteses](guides/bonsai.md)
 
 Notes from KDD
 
