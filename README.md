@@ -12,7 +12,7 @@ KTHW = "Kubernetes the hard way" (a cloud guru)
 
 [Bonsai Kuberneteses](guides/bonsai.md)
 
-Notes from KDD
+[Notes from KDD](guides/kdd.md)
 
 Put stupid stuff on K8s
 

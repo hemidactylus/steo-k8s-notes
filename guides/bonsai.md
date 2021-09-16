@@ -5,7 +5,7 @@ local-running kubernetes clusters and other learning environments.
 For testing, or even for serious stuff. Let's say: "for when you don't want
 to wait 40 minutes for EKS to start".
 
-### Minikube
+## Minikube
 
 Spins up local VM (or multiple as well) on which the k8s cluster is then
 created. Handles the k8s network and so on, configures kubeconfig for
@@ -27,7 +27,7 @@ It's a full-fledged k8s cluster so the usual commands will work (kubectl ...)
 **Warning** installing the metrics plugin (e.g. to have HPAs) is a bloody mess
 I could not tame.
 
-### KinD
+## KinD
 
 More lightweight, based on Dockerized images instead of VMs.
 
@@ -42,7 +42,7 @@ Seems neater than Minikube I must say.
 
 (No idea yet if it supports metrics for HPAs)
 
-### PWK
+## PWK
 
 a.k.a. "Play with Kubernetes". This is a Web service that offers
 K8s clusters for free in the cloud, with a lifetime of 4 hours.
