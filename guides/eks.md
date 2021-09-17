@@ -1,33 +1,52 @@
-# EKS
+# AWS EKS Survival Guide
 
-eksctl.txt
+My goal was: let us just have a vanilla K8s cluster up and running in EKS
+to be able to finally test HPA and possibly CA.
 
-My experiences with 'eksctl' for some of the demos / real stuff testing
+As usual with AWS, you end up in a jungle of IAM roles and permissions
+even for the simplest thing, with a matrioska structure of doc pages
+instructing you to create this and that IAM roles, etc etc.
 
-====
+I soon abandoned the idea of creating everything by hand (too many doc
+page tabs open) and went for the "easy" way.
 
-maybe it's enough to follow this basic thing for the time being
-    https://docs.aws.amazon.com/eks/latest/userguide/getting-started-eksctl.html
+The easy way is using `eksctl`, a command-line utility from AWS, companion
+(and which makes use of) the `aws` CLI, which does a lot of things for you.
 
-after checking that
-  aws sts get-caller-identity   # note: sts = security token service
-returns
-    {
-        "UserId": "AIDAQYJUK62XAUWEGFO7V",
-        "Account": "052186248878",
-        "Arn": "arn:aws:iam::052186248878:user/stefano.lottini"
-    }
+Still, creation of the cluster takes _quite some time_: behind the scenes, a lot of
+rather heavy operations are executed, as CloudFormation stacks, which
+involve creation of EC2 instances, VPCs, LBs, ... a lot of moving parts.
 
-Doing instructions from the above link:
-  eksctl create cluster --name steocluster --region us-east-1 --fargate
-  # a long output that, as expected, creates/provisions a CF stack for several minutes...
-  # inspect the CF stack, it's a *lot* of resources, like 27 things (roles, control plane, sec groups, VPC/NAT stuff, ...)
-  # then creating the nodegroup and a lot of other stuff
-  # after 34 minutes!!!!! has finished and
-    kubectl get nodes
-    kubectl get svc
-  # work!
-  # Full output of "eksctl create cluster ..." follows:
+### Preliminaries
+
+Have `aws` CLI installed and set up on your machine and check who you are with
+
+    aws sts get-caller-identity   # note: sts = security token service
+    #
+    # should return something like:
+    #     {
+    #         "UserId": "AID...",
+    #         "Account": "05...",
+    #         "Arn": "arn:aws:iam::05...:user/XXXYYYZZZ"
+    #     }
+
+What follows has been done as described in the doc
+[here](https://docs.aws.amazon.com/eks/latest/userguide/getting-started-eksctl.html).
+
+Now it's time to install `eksctl`, see the linked doc.
+
+### Creation of the K8s cluster
+
+I'm calling my cluster `steocluster`. Start with:
+
+    eksctl create cluster --name steocluster --region us-east-1 --fargate
+
+A very long output follows. A CloudFormation stack is created/provisioned.
+The thing lasts several minutes: if you inspect the CF stack you see that
+it's a _lot_ of resources (I counted 27: roles, control plane,
+security groups, VPC/NAT things; creation of the NodeGroup, etc etc).
+The (abridged) output follows:
+
         2021-08-26 23:16:34 [ℹ]  eksctl version 0.62.0
         2021-08-26 23:16:34 [ℹ]  using region us-east-1
         2021-08-26 23:16:34 [ℹ]  setting availability zones to [us-east-1f us-east-1b]
@@ -45,20 +64,7 @@ Doing instructions from the above link:
         2021-08-26 23:16:34 [ℹ]  building cluster stack "eksctl-steocluster-cluster"
         2021-08-26 23:16:35 [ℹ]  deploying stack "eksctl-steocluster-cluster"
         2021-08-26 23:17:05 [ℹ]  waiting for CloudFormation stack "eksctl-steocluster-cluster"
-        2021-08-26 23:17:36 [ℹ]  waiting for CloudFormation stack "eksctl-steocluster-cluster"
-        2021-08-26 23:18:36 [ℹ]  waiting for CloudFormation stack "eksctl-steocluster-cluster"
-        2021-08-26 23:19:37 [ℹ]  waiting for CloudFormation stack "eksctl-steocluster-cluster"
-        2021-08-26 23:20:37 [ℹ]  waiting for CloudFormation stack "eksctl-steocluster-cluster"
-        2021-08-26 23:21:38 [ℹ]  waiting for CloudFormation stack "eksctl-steocluster-cluster"
-        2021-08-26 23:22:38 [ℹ]  waiting for CloudFormation stack "eksctl-steocluster-cluster"
-        2021-08-26 23:23:39 [ℹ]  waiting for CloudFormation stack "eksctl-steocluster-cluster"
-        2021-08-26 23:24:40 [ℹ]  waiting for CloudFormation stack "eksctl-steocluster-cluster"
-        2021-08-26 23:25:40 [ℹ]  waiting for CloudFormation stack "eksctl-steocluster-cluster"
-        2021-08-26 23:26:41 [ℹ]  waiting for CloudFormation stack "eksctl-steocluster-cluster"
-        2021-08-26 23:27:41 [ℹ]  waiting for CloudFormation stack "eksctl-steocluster-cluster"
-        2021-08-26 23:28:42 [ℹ]  waiting for CloudFormation stack "eksctl-steocluster-cluster"
-        2021-08-26 23:29:42 [ℹ]  waiting for CloudFormation stack "eksctl-steocluster-cluster"
-        2021-08-26 23:30:43 [ℹ]  waiting for CloudFormation stack "eksctl-steocluster-cluster"
+        [...]
         2021-08-26 23:32:46 [ℹ]  creating Fargate profile "fp-default" on EKS cluster "steocluster"
         2021-08-26 23:37:05 [ℹ]  created Fargate profile "fp-default" on EKS cluster "steocluster"
         2021-08-26 23:39:37 [ℹ]  "coredns" is now schedulable onto Fargate
@@ -67,17 +73,7 @@ Doing instructions from the above link:
         2021-08-26 23:43:47 [ℹ]  building managed nodegroup stack "eksctl-steocluster-nodegroup-ng-8b451620"
         2021-08-26 23:43:48 [ℹ]  deploying stack "eksctl-steocluster-nodegroup-ng-8b451620"
         2021-08-26 23:43:48 [ℹ]  waiting for CloudFormation stack "eksctl-steocluster-nodegroup-ng-8b451620"
-        2021-08-26 23:44:05 [ℹ]  waiting for CloudFormation stack "eksctl-steocluster-nodegroup-ng-8b451620"
-        2021-08-26 23:44:22 [ℹ]  waiting for CloudFormation stack "eksctl-steocluster-nodegroup-ng-8b451620"
-        2021-08-26 23:44:42 [ℹ]  waiting for CloudFormation stack "eksctl-steocluster-nodegroup-ng-8b451620"
-        2021-08-26 23:44:59 [ℹ]  waiting for CloudFormation stack "eksctl-steocluster-nodegroup-ng-8b451620"
-        2021-08-26 23:45:20 [ℹ]  waiting for CloudFormation stack "eksctl-steocluster-nodegroup-ng-8b451620"
-        2021-08-26 23:45:39 [ℹ]  waiting for CloudFormation stack "eksctl-steocluster-nodegroup-ng-8b451620"
-        2021-08-26 23:45:59 [ℹ]  waiting for CloudFormation stack "eksctl-steocluster-nodegroup-ng-8b451620"
-        2021-08-26 23:46:16 [ℹ]  waiting for CloudFormation stack "eksctl-steocluster-nodegroup-ng-8b451620"
-        2021-08-26 23:46:34 [ℹ]  waiting for CloudFormation stack "eksctl-steocluster-nodegroup-ng-8b451620"
-        2021-08-26 23:46:51 [ℹ]  waiting for CloudFormation stack "eksctl-steocluster-nodegroup-ng-8b451620"
-        2021-08-26 23:47:08 [ℹ]  waiting for CloudFormation stack "eksctl-steocluster-nodegroup-ng-8b451620"
+        [...]
         2021-08-26 23:47:08 [ℹ]  waiting for the control plane availability...
         2021-08-26 23:47:08 [✔]  saved kubeconfig as "/home/stefano/.kube/config"
         2021-08-26 23:47:08 [ℹ]  no tasks
@@ -92,217 +88,308 @@ Doing instructions from the above link:
         2021-08-26 23:49:14 [ℹ]  kubectl command should work with "/home/stefano/.kube/config", try 'kubectl get nodes'
         2021-08-26 23:49:14 [✔]  EKS cluster "steocluster" in "us-east-1" region is ready
 
-  # We try demo of HPA from section 8, 'autoscaling'
-    Ok apply -f hpademo.yml
-    BUT: according to this, https://docs.aws.amazon.com/eks/latest/userguide/metrics-server.html,
-      (and this on HPA https://docs.aws.amazon.com/eks/latest/userguide/horizontal-pod-autoscaler.html)
-      the metrics server is not automatically installed in the cluster.
-      We install it with (found in the docs above):
-        kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
-        (check with:
-          kubectl get deployment metrics-server -n kube-system
-        )
-      Installing it takes about one minute
+After 34 minutes the cluster is ready. Your `~/.kube/config` has also been touched and you can easily test with:
 
-    If you log in as the IAM user corresponding to that of 'aws CLI', you see all resources
-    including the node group in the cluster!
+    kubectl get nodes
+    kubectl get svc
 
-    Ok, back on track with the metrics working. Now the
-      kubectl get hpa --namespace acg-ns
-    returns a 0%/50% in targets, yay!
+Moreover, if you log in to the AWS Console as the IAM user corresponding to that of the aws CLI used above,
+you'll see all AWS resources pertaining to the K8s cluster, including the node group on which it resides.
 
-    (by the way, the service deployed in the example - a web server that eats CPU to return 'OK!' - has an external domain, all handled within aws by the deployment!)
+### Trying the KDD demos for HPA and CA
 
-    ??? For some reason in the 'busybox' image, supposedly identical to deployed e.g. on minikube,
-    there is no "/bin/bash" but then if I deploy the pod and then exec 'sh' on it, I can run the loop with the wget.
-    ???
+We can finally try the autoscaling demos from the [KDD course](kdd/md).
 
-    All proceeds as in the demo, with the dumped deployment yaml as follows:
-      kubectl get deploy --namespace acg-ns -o yaml
-            apiVersion: v1
-            items:
-            - apiVersion: apps/v1
-              kind: Deployment
-              metadata:
-                annotations:
-                  deployment.kubernetes.io/revision: "1"
-                  kubectl.kubernetes.io/last-applied-configuration: |
-                    {"apiVersion":"apps/v1","kind":"Deployment","metadata":{"annotations":{},"labels":{"app":"acg-stress"},"name":"acg-web","namespace":"acg-ns"},"spec":{"replicas":1,"selector":{"matchLabels":{"app":"acg-stress"}},"strategy":{"rollingUpdate":{"maxSurge":1,"maxUnavailable":0},"type":"RollingUpdate"},"template":{"metadata":{"labels":{"app":"acg-stress"}},"spec":{"containers":[{"image":"k8s.gcr.io/hpa-example","name":"stresser","ports":[{"containerPort":80}],"resources":{"requests":{"cpu":0.2}}}]}}}}
-                creationTimestamp: "2021-08-26T22:23:07Z"
-                generation: 3
-                labels:
-                  app: acg-stress
-                name: acg-web
-                namespace: acg-ns
-                resourceVersion: "12399"
-                uid: 2e89e3cb-be9d-44a1-a83d-33ea2045e015
-              spec:
-                progressDeadlineSeconds: 600
-                replicas: 8
-                revisionHistoryLimit: 10
-                selector:
-                  matchLabels:
-                    app: acg-stress
-                strategy:
-                  rollingUpdate:
-                    maxSurge: 1
-                    maxUnavailable: 0
-                  type: RollingUpdate
-                template:
-                  metadata:
-                    creationTimestamp: null
-                    labels:
-                      app: acg-stress
-                  spec:
-                    containers:
-                    - image: k8s.gcr.io/hpa-example
-                      imagePullPolicy: Always
-                      name: stresser
-                      ports:
-                      - containerPort: 80
-                        protocol: TCP
-                      resources:
-                        requests:
-                          cpu: 200m
-                      terminationMessagePath: /dev/termination-log
-                      terminationMessagePolicy: File
-                    dnsPolicy: ClusterFirst
-                    restartPolicy: Always
-                    schedulerName: default-scheduler
-                    securityContext: {}
-                    terminationGracePeriodSeconds: 30
-              status:
-                availableReplicas: 8
-                conditions:
-                - lastTransitionTime: "2021-08-26T22:23:07Z"
-                  lastUpdateTime: "2021-08-26T22:23:23Z"
-                  message: ReplicaSet "acg-web-6dbf94b886" has successfully progressed.
-                  reason: NewReplicaSetAvailable
-                  status: "True"
-                  type: Progressing
-                - lastTransitionTime: "2021-08-26T22:46:27Z"
-                  lastUpdateTime: "2021-08-26T22:46:27Z"
-                  message: Deployment has minimum availability.
-                  reason: MinimumReplicasAvailable
-                  status: "True"
-                  type: Available
-                observedGeneration: 3
-                readyReplicas: 8
-                replicas: 8
-                updatedReplicas: 8
-            kind: List
-            metadata:
-              resourceVersion: ""
-              selfLink: ""
+#### HPA Demo
 
-  # We now try the CA demo - maybe requires some special things (the aws-specific version of them)
-  # to create CA in aws, you do some tricks with ... you guessed it: roles and permission and IAM black magic.
-  # According to this: https://docs.aws.amazon.com/eks/latest/userguide/cluster-autoscaler.html,
-  # since we created the cluster with eksctl, it should be quick. Let's see:
-    Now, the doc say to invoke a command "eksctl create iamserviceaccount ..." before installing the CA.
-    The doc is unclear on what to put as a policy when you DID NOT use the --asg-access flag back in creating the node group
-    (ahem, the cluster really: the node group was automatically created by eksctl in the
-    giant 34-minutes cloudformation festival)
-    So by looking here:
-      https://docs.aws.amazon.com/eks/latest/userguide/create-node-role.html
-    it may be that the right thing is to look for a "ROLE" and alter the command to attach a role and not a policy, as in:
-      eksctl create iamserviceaccount   --cluster=steocluster   --namespace=kube-system   --name=cluster-autoscaler   --override-existing-serviceaccounts   --approve --attach-role-arn arn:aws:iam::052186248878:role/eksctl-steocluster-nodegroup-ng-8-NodeInstanceRole-SL63QZD8GAFC
-    (role found in IAM as suggested in the create-node-role.html page).
-    But this tries and gives an error, "no IAM OIDC provider associated with cluster ... blabla. Try <command>"
-    where <command> is:
-      eksctl utils associate-iam-oidc-provider --region=us-east-1 --cluster=steocluster
-    you launch it with '--approve' added and should create an "IAM Open ID Connect provider" associated to the k8s cluster:
-    And it did!
-      eksctl utils associate-iam-oidc-provider --region=us-east-1 --cluster=steocluster --approve
-          2021-08-27 01:05:53 [ℹ]  eksctl version 0.62.0
-          2021-08-27 01:05:53 [ℹ]  using region us-east-1
-          2021-08-27 01:05:54 [ℹ]  will create IAM Open ID Connect provider for cluster "steocluster" in "us-east-1"
-          2021-08-27 01:05:55 [✔]  created IAM Open ID Connect provider for cluster "steocluster" in "us-east-1"
-    So now the above command (create iamserviceaccount ...) worked!
-      eksctl create iamserviceaccount   --cluster=steocluster   --namespace=kube-system   --name=cluster-autoscaler   --override-existing-serviceaccounts   --approve --attach-role-arn arn:aws:iam::052186248878:role/eksctl-steocluster-nodegroup-ng-8-NodeInstanceRole-SL63QZD8GAFC
-          2021-08-27 01:06:17 [ℹ]  eksctl version 0.62.0
-          2021-08-27 01:06:17 [ℹ]  using region us-east-1
-          2021-08-27 01:06:19 [ℹ]  1 iamserviceaccount (kube-system/cluster-autoscaler) was included (based on the include/exclude rules)
-          2021-08-27 01:06:19 [!]  metadata of serviceaccounts that exist in Kubernetes will be updated, as --override-existing-serviceaccounts was set
-          2021-08-27 01:06:19 [ℹ]  1 task: { create serviceaccount "kube-system/cluster-autoscaler" }
-          2021-08-27 01:06:19 [ℹ]  created serviceaccount "kube-system/cluster-autoscaler"
-    Now we are back to following the "cluster-autoscaler.html" page in the doc maze.
-    (step 1 of Deploy) We can kubectl apply the CA in the cluster:
-      kubectl apply -f https://raw.githubusercontent.com/kubernetes/autoscaler/master/cluster-autoscaler/cloudprovider/aws/examples/cluster-autoscaler-autodiscover.yaml
-      # (gives a warning: missing some annotations so it's not entirely declarative, autopatched for now but please)
-    (step 2) annotate the cluster-autoscaler service account, giving the ARN of the "role created previously" (in the docs so far it has spoken of a policy, not a role - although it was a role I used and attached to the iamserviceaccount. Bah)
-      kubectl annotate serviceaccount cluster-autoscaler   -n kube-system   eks.amazonaws.com/role-arn=arn:aws:iam::052186248878:role/eksctl-steocluster-nodegroup-ng-8-NodeInstanceRole-SL63QZD8GAFC
-      Step 2 gives an ERROR = there is already such an annotation
-      (looking closely, the contents are already what we wanted to annotate here, same role, so maybe we can skip this?)
-    (step 3) 
-      patch the deployment to add a 'safe-to-evict: false' annotation to the CA pods (?)
-        kubectl patch deployment cluster-autoscaler   -n kube-system   -p '{"spec":{"template":{"metadata":{"annotations":{"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"}}}}}'
-            deployment.apps/cluster-autoscaler patched
-    (step 4)
-      edit the CA deployment's manifest
-        - replace <YOUR CLUSTER NAME> with 'steocluster' (in TWO points)
-        and other options at the end of in 'spec.containers.command':
-          --balance-similar-node-groups
-          --skip-nodes-with-system-pods=false
+All right with the
+    
+    kubectl apply -f hpademo.yml
 
-    (step 5 open the CA releases page and look for the latest CA matching my k8s version.
-    page: https://github.com/kubernetes/autoscaler/releases
-    for k8s 1.20 -> it is 1.20.0)
+But _beware_: according to [this document](https://docs.aws.amazon.com/eks/latest/userguide/metrics-server.html),
+the metrics server is not automatically installed in the cluster (see also [this page on HPA](https://docs.aws.amazon.com/eks/latest/userguide/horizontal-pod-autoscaler.html).
 
-    (step 6) set the CA image tag to the version just found:
-      kubectl set image deployment cluster-autoscaler   -n kube-system   cluster-autoscaler=k8s.gcr.io/autoscaling/cluster-autoscaler:v1.20.0
-          deployment.apps/cluster-autoscaler image updated
-      (doc is inaccurate, does not mention that you must replace "<1.21.n>" including the "<", ">"
+To install the metrics server, the doc above gives the command
 
+    kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
 
-    TEST
-      kubectl -n kube-system logs -f deployment.apps/cluster-autoscaler
-      ** seems to do "something"
+This takes about one minute and at the end you can check with
 
-  # Let us assume the CA is installed (bah) and try he demo.
-      kubectl apply -f autoscale.yml
-      kubectl get deploy    # shows available 0/1
-      kubectl get pods      # shows one pod pending -> then running
-      # so as in the demo, also get deploy shows 1/1 running all right.
+    kubectl get deployment metrics-server -n kube-system
 
-      # we edit the yaml, "spec.replicas -> 6", re-apply and
-        watch the node count, 'kubectl get nodes'
-        and the 'kubectl get deploy'
+Once the metrics server is working, the load test from the demo,
 
-        * The get nodes indeed is growing like crazy, and also the get deploy!
-        Deploy reaches 6/6!
-        And nodes has added 5 fargate instances! (indeed replicas went 1->6)
-        WOW.
+    kubectl get hpa --namespace acg-ns
 
-        Also same increase in fargates can be seen in the EKS console for the cluster. Yay.
+will return, under "targets", a nice `0%/50%`.
 
-# DELETING THE WHOLE CLUSTER
-Took only 8 minutes!
+_Note: by the way, the service deployed in the example - a web server that eats CPU on purpose to return 'OK!' -
+has an external reachable domain, all handled within AWS by the deployment._
 
-      eksctl delete cluster steocluster
-            2021-08-27 01:31:47 [ℹ]  eksctl version 0.62.0
-            2021-08-27 01:31:47 [ℹ]  using region us-east-1
-            2021-08-27 01:31:47 [ℹ]  deleting EKS cluster "steocluster"
-            2021-08-27 01:31:49 [ℹ]  deleting Fargate profile "fp-default"
-            2021-08-27 01:36:06 [ℹ]  deleted Fargate profile "fp-default"
-            2021-08-27 01:36:06 [ℹ]  deleted 1 Fargate profile(s)
-            2021-08-27 01:36:08 [✔]  kubeconfig has been updated
-            2021-08-27 01:36:08 [ℹ]  cleaning up AWS load balancers created by Kubernetes objects of Kind Service or Ingress
-            2021-08-27 01:36:11 [ℹ]  3 sequential tasks: { delete nodegroup "ng-8b451620", delete IAM OIDC provider, delete cluster control plane "steocluster" [async] }
-            2021-08-27 01:36:12 [ℹ]  will delete stack "eksctl-steocluster-nodegroup-ng-8b451620"
-            2021-08-27 01:36:12 [ℹ]  waiting for stack "eksctl-steocluster-nodegroup-ng-8b451620" to get deleted
-            2021-08-27 01:36:12 [ℹ]  waiting for CloudFormation stack "eksctl-steocluster-nodegroup-ng-8b451620"
-            2021-08-27 01:36:28 [ℹ]  waiting for CloudFormation stack "eksctl-steocluster-nodegroup-ng-8b451620"
-            2021-08-27 01:36:45 [ℹ]  waiting for CloudFormation stack "eksctl-steocluster-nodegroup-ng-8b451620"
-            2021-08-27 01:37:06 [ℹ]  waiting for CloudFormation stack "eksctl-steocluster-nodegroup-ng-8b451620"
-            2021-08-27 01:37:23 [ℹ]  waiting for CloudFormation stack "eksctl-steocluster-nodegroup-ng-8b451620"
-            2021-08-27 01:37:43 [ℹ]  waiting for CloudFormation stack "eksctl-steocluster-nodegroup-ng-8b451620"
-            2021-08-27 01:38:03 [ℹ]  waiting for CloudFormation stack "eksctl-steocluster-nodegroup-ng-8b451620"
-            2021-08-27 01:38:22 [ℹ]  waiting for CloudFormation stack "eksctl-steocluster-nodegroup-ng-8b451620"
-            2021-08-27 01:38:39 [ℹ]  waiting for CloudFormation stack "eksctl-steocluster-nodegroup-ng-8b451620"
-            2021-08-27 01:38:58 [ℹ]  waiting for CloudFormation stack "eksctl-steocluster-nodegroup-ng-8b451620"
-            2021-08-27 01:39:15 [ℹ]  waiting for CloudFormation stack "eksctl-steocluster-nodegroup-ng-8b451620"
-            2021-08-27 01:39:31 [ℹ]  waiting for CloudFormation stack "eksctl-steocluster-nodegroup-ng-8b451620"
-            2021-08-27 01:39:50 [ℹ]  waiting for CloudFormation stack "eksctl-steocluster-nodegroup-ng-8b451620"
-            2021-08-27 01:39:52 [ℹ]  will delete stack "eksctl-steocluster-cluster"
-            2021-08-27 01:39:52 [✔]  all cluster resources were deleted
+**Note** For some reason in the 'busybox' image, supposedly identical to the one deployed e.g. on minikube,
+there is no `/bin/bash` but then if I deploy the pod and then exec 'sh' on it, I can run the loop with the wget.
+Unclear why. It should be the very same image yet it has different shell
+(related to the cluster being on AWS? unlikely).
+
+Everything proceeds as in the demo. Here is the dumped deployment yaml from
+`kubectl get deploy --namespace acg-ns -o yaml`:
+
+```
+apiVersion: v1
+items:
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    annotations:
+      deployment.kubernetes.io/revision: "1"
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"apps/v1","kind":"Deployment","metadata":{"annotations":{},"labels":{"app":"acg-stress"},"name":"acg-web","namespace":"acg-ns"},"spec":{"replicas":1,"selector":{"matchLabels":{"app":"acg-stress"}},"strategy":{"rollingUpdate":{"maxSurge":1,"maxUnavailable":0},"type":"RollingUpdate"},"template":{"metadata":{"labels":{"app":"acg-stress"}},"spec":{"containers":[{"image":"k8s.gcr.io/hpa-example","name":"stresser","ports":[{"containerPort":80}],"resources":{"requests":{"cpu":0.2}}}]}}}}
+    creationTimestamp: "2021-08-26T22:23:07Z"
+    generation: 3
+    labels:
+      app: acg-stress
+    name: acg-web
+    namespace: acg-ns
+    resourceVersion: "12399"
+    uid: 2e89e3cb-be9d-44a1-a83d-33ea2045e015
+  spec:
+    progressDeadlineSeconds: 600
+    replicas: 8
+    revisionHistoryLimit: 10
+    selector:
+      matchLabels:
+        app: acg-stress
+    strategy:
+      rollingUpdate:
+        maxSurge: 1
+        maxUnavailable: 0
+      type: RollingUpdate
+    template:
+      metadata:
+        creationTimestamp: null
+        labels:
+          app: acg-stress
+      spec:
+        containers:
+        - image: k8s.gcr.io/hpa-example
+          imagePullPolicy: Always
+          name: stresser
+          ports:
+          - containerPort: 80
+            protocol: TCP
+          resources:
+            requests:
+              cpu: 200m
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+        dnsPolicy: ClusterFirst
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+  status:
+    availableReplicas: 8
+    conditions:
+    - lastTransitionTime: "2021-08-26T22:23:07Z"
+      lastUpdateTime: "2021-08-26T22:23:23Z"
+      message: ReplicaSet "acg-web-6dbf94b886" has successfully progressed.
+      reason: NewReplicaSetAvailable
+      status: "True"
+      type: Progressing
+    - lastTransitionTime: "2021-08-26T22:46:27Z"
+      lastUpdateTime: "2021-08-26T22:46:27Z"
+      message: Deployment has minimum availability.
+      reason: MinimumReplicasAvailable
+      status: "True"
+      type: Available
+    observedGeneration: 3
+    readyReplicas: 8
+    replicas: 8
+    updatedReplicas: 8
+kind: List
+metadata:
+  resourceVersion: ""
+  selfLink: ""
+```
+
+#### CA Demo
+
+To have autoscaling in our EKS cluster, some more AWS-specific meddling
+is required. To enable CA in AWS, indeed, you do some more tricks with...
+you guessed it: roles and permissions and IAM black magic.
+
+Reference page is [this one](https://docs.aws.amazon.com/eks/latest/userguide/cluster-autoscaler.html).
+Since this cluster was created with the help of `eksctl`, it should be relatively quick. Let's see.
+
+##### Service account creation
+
+Now, the doc says to invoke a command `eksctl create iamserviceaccount ...` before installing the CA.
+
+But there's something unclear: what to put as a policy, since we _did not_ use the `--asg-access` flag back when
+creating the node group (or, better, the cluster: indeed the node group was automatically
+created by `eksctl` in the 34-minutes CloudFormation party).
+
+So by looking [here](https://docs.aws.amazon.com/eks/latest/userguide/create-node-role.html),
+I conclude that the right thing to do should be this: look for a _role_
+and alter the command so that it attaches a _role_ and not a policy.
+
+I ended up with this:
+    
+    # Note: this won't work yet, see below
+    eksctl create iamserviceaccount --cluster=steocluster --namespace=kube-system --name=cluster-autoscaler \
+      --override-existing-serviceaccounts --approve \
+      --attach-role-arn arn:aws:iam::052186248878:role/eksctl-steocluster-nodegroup-ng-8-NodeInstanceRole-SL63QZD8GAFC
+
+where the role ARN is found in IAM as suggested in the doc page linked right above.
+
+But **Beware**! This command gives an error, _no IAM OIDC provider associated with cluster ... blabla. Try <COMMAND>_
+
+The suggested command is something like
+
+    eksctl utils associate-iam-oidc-provider --region=us-east-1 --cluster=steocluster  # not complete yet!
+
+It does not work like this but looking at how it complains I see I can try adding an `--approve` flag, as in
+
+    eksctl utils associate-iam-oidc-provider --region=us-east-1 --cluster=steocluster --approve
+
+which finally succeeds and creates an "IAM Open ID Connect provider" associated to the k8s cluster. Its output is:
+
+    2021-08-27 01:05:53 [ℹ]  eksctl version 0.62.0
+    2021-08-27 01:05:53 [ℹ]  using region us-east-1
+    2021-08-27 01:05:54 [ℹ]  will create IAM Open ID Connect provider for cluster "steocluster" in "us-east-1"
+    2021-08-27 01:05:55 [✔]  created IAM Open ID Connect provider for cluster "steocluster" in "us-east-1"
+
+Now the `create iamserviceaccount` works:
+
+    eksctl create iamserviceaccount --cluster=steocluster --namespace=kube-system --name=cluster-autoscaler \
+      --override-existing-serviceaccounts --approve \
+      --attach-role-arn arn:aws:iam::052186248878:role/eksctl-steocluster-nodegroup-ng-8-NodeInstanceRole-SL63QZD8GAFC
+
+with output such as
+
+    2021-08-27 01:06:17 [ℹ]  eksctl version 0.62.0
+    2021-08-27 01:06:17 [ℹ]  using region us-east-1
+    2021-08-27 01:06:19 [ℹ]  1 iamserviceaccount (kube-system/cluster-autoscaler) was included (based on the include/exclude rules)
+    2021-08-27 01:06:19 [!]  metadata of serviceaccounts that exist in Kubernetes will be updated, as --override-existing-serviceaccounts was set
+    2021-08-27 01:06:19 [ℹ]  1 task: { create serviceaccount "kube-system/cluster-autoscaler" }
+    2021-08-27 01:06:19 [ℹ]  created serviceaccount "kube-system/cluster-autoscaler"
+
+and we can get back on track with setting up the cluster autoscaler.
+
+##### Back to installing the CA
+
+With reference to the "Deploy" steps in  corresponding
+[doc page](https://docs.aws.amazon.com/eks/latest/userguide/cluster-autoscaler.html),
+also linked above, we can resume:
+
+**Step 1 of Deploy**. We can `kubectl apply` the CA in the cluster:
+
+    kubectl apply -f https://raw.githubusercontent.com/kubernetes/autoscaler/master/cluster-autoscaler/cloudprovider/aws/examples/cluster-autoscaler-autodiscover.yaml
+
+It works but gives a warning to the effect of _missing some annotations so it's not entirely declarative, autopatched this time, but please!_
+
+**Step 2**. Annotate the `cluster-autoscaler` service account, giving the ARN of the "role created previously"
+(although in the docs, before this point, it was supposed to be a policy and not a role; on the other hand I used
+a role indeed and attached it to the iamserviceaccount. Small inconsistency, but apparently resolved in favour of a role).
+
+    # This won't succeed!
+    kubectl annotate serviceaccount cluster-autoscaler -n kube-system eks.amazonaws.com/role-arn=arn:aws:iam::052186248878:role/eksctl-steocluster-nodegroup-ng-8-NodeInstanceRole-SL63QZD8GAFC
+
+Step 2 gives an _Error_ ("there is already such an annotation").
+Looking closely, the contents are already what we wanted to annotate here, same role, so maybe we can skip this after all.
+
+We skip this indeed.
+
+**Step 3**. Patch the deployment to add a `'safe-to-evict: false'` annotation to the CA pods.
+
+    kubectl patch deployment cluster-autoscaler -n kube-system \
+      -p '{"spec":{"template":{"metadata":{"annotations":{"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"}}}}}'
+
+Output is `deployment.apps/cluster-autoscaler patched`.
+
+**Step 4**. Edit the CA deployment's manifest to tweak a few things. This is done opening a text editor with
+
+    kubectl -n kube-system edit deployment.apps/cluster-autoscaler
+
+and:
+
+- replacing `<YOUR CLUSTER NAME>` with `'steocluster'`, _in TWO places_;
+- adding options at the end of the list in `'spec.containers.command'`:
+```
+    --balance-similar-node-groups
+    --skip-nodes-with-system-pods=false
+```
+
+**Step 5**. Open the [CA releases](https://github.com/kubernetes/autoscaler/releases) page
+and look for the latest CA matching my k8s version. I found `1.20` for k8s, so for us here it is `1.20.0`.
+
+**Step 6**. Set the CA image tag to the version just found:
+
+    kubectl set image deployment cluster-autoscaler -n kube-system \
+      cluster-autoscaler=k8s.gcr.io/autoscaling/cluster-autoscaler:v1.20.0
+
+Output is `deployment.apps/cluster-autoscaler image updated`.
+
+_Careful_, the doc leaves the `<` and `>` which have to be edited away!
+
+**Verify the CA is deployed**.
+
+Command
+
+    kubectl -n kube-system logs -f deployment.apps/cluster-autoscaler
+
+seems to do "something". Ok, installed.
+
+##### Finally the CA demo as in [KDD](kdd.md).
+
+First
+
+    kubectl apply -f autoscale.yml
+
+Then
+
+    kubectl get deploy
+
+which shows "AVAILABLE 0/1".
+
+Then
+
+    kubectl get pods
+
+first shows one pending pod, then it becomes running. And now the `get deploy`
+gives "1/1 running": all is fine.
+
+We then edit the yaml, set `spec.replicas` to 6, re-apply and
+watch the node count with `kubectl get nodes` and `kubectl get deploy`.
+
+Both counts indeed grow like crazy!
+
+- Output for deploys reaches 6/6;
+- Output for nodes also shows that 5 new Fargate instances were added;
+- also the same increase can be seen in the EKS console for this cluster.
+
+So everything works. Quick, isn't it?
+
+### Deletion of the whole cluster
+
+This took only 8 minutes and is a single command (and some more patience):
+
+    eksctl delete cluster steocluster
+
+Here is its (abridged) output:
+
+    2021-08-27 01:31:47 [ℹ]  eksctl version 0.62.0
+    2021-08-27 01:31:47 [ℹ]  using region us-east-1
+    2021-08-27 01:31:47 [ℹ]  deleting EKS cluster "steocluster"
+    2021-08-27 01:31:49 [ℹ]  deleting Fargate profile "fp-default"
+    2021-08-27 01:36:06 [ℹ]  deleted Fargate profile "fp-default"
+    2021-08-27 01:36:06 [ℹ]  deleted 1 Fargate profile(s)
+    2021-08-27 01:36:08 [✔]  kubeconfig has been updated
+    2021-08-27 01:36:08 [ℹ]  cleaning up AWS load balancers created by Kubernetes objects of Kind Service or Ingress
+    2021-08-27 01:36:11 [ℹ]  3 sequential tasks: { delete nodegroup "ng-8b451620", delete IAM OIDC provider, delete cluster control plane "steocluster" [async] }
+    2021-08-27 01:36:12 [ℹ]  will delete stack "eksctl-steocluster-nodegroup-ng-8b451620"
+    2021-08-27 01:36:12 [ℹ]  waiting for stack "eksctl-steocluster-nodegroup-ng-8b451620" to get deleted
+    2021-08-27 01:36:12 [ℹ]  waiting for CloudFormation stack "eksctl-steocluster-nodegroup-ng-8b451620"
+    [...]
+    2021-08-27 01:39:52 [ℹ]  will delete stack "eksctl-steocluster-cluster"
+    2021-08-27 01:39:52 [✔]  all cluster resources were deleted
