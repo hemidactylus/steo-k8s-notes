@@ -2,6 +2,8 @@
 
 miscellaneous notes and snippets while learning Kubernetes
 
+![image](images/wannabe.png)
+
 ### Reference courses
 
 KDD = "Kubernetes deep dive" (a cloud guru)
