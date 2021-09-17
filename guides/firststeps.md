@@ -226,4 +226,182 @@ If everything works, that's it. Otherwise, good luck with
 
 Time to create something more complex made by several parts.
 
-TODO
+The next architecture we will create is a mockup of the following, all
+in K8s:
+
+- a "database" (called Storage API here), a web server that handles file I/O
+  on ...
+- a persistent volume (and associated PVC) where files are read and written.
+- an "application API" facing the external world, which in turn will internally
+  speak to the storage API.
+
+The two APIs will run as deployments and will have each a service in front;
+moreover, the storage-api pods will share the volume, so that even if the pods
+are destroyed or re-created (failures, autoscaling, etc), the files
+("the database" in the mockup) will be maintained.
+
+So it is a very simple setup, but mimicking already a real-life scenario.
+
+Let's first quickly review the two container images (each created similarly
+to _Step 1_ above), before inspecting how they fit together.
+
+### Storage API
+
+This is a simple Flask API composed of
+a `requirements.txt` with the sole line `Flask==2.0.1`
+and a file `app.py` like this:
+```
+import os
+from flask import Flask, jsonify
+
+storageDir = os.environ['STO_STORAGE']
+
+app = Flask('sto-img')
+
+
+@app.route('/items', methods=['GET', 'PUT'])
+def list():
+    return jsonify({
+        'items': sorted(
+            os.listdir(storageDir)
+        )
+    })
+
+
+@app.route('/items/<item>', methods=['PUT'])
+def insert(item):
+    nfile = os.path.join(storageDir, item)
+    open(nfile, 'w').write('x')
+    return jsonify({
+        'created': {
+            item: True,
+        },
+    })
+
+
+@app.route('/items/<item>', methods=['DELETE'])
+def delete(item):
+    nfile = os.path.join(storageDir, item)
+    os.remove(nfile)
+    return jsonify({
+        'deleted': {
+            item: True,
+        },
+    })
+
+app.run(host='0.0.0.0')
+```
+
+In practice, this API exposes three endpoints to:
+
+- list some (string) items;
+- create a new item;
+- delete an item.
+
+These operations are reflected in the creation/destruction of files
+(whose name is the string item itself) in a directory whose path
+is specified in the _environment variable_ `STO_STORAGE`.
+
+In practice, the first endpoint is akin to a `ls` command in that dir,
+the second one is a `touch <item>` and the third is a `rm <item>`.
+
+No surprises in the associated Dockerfile:
+```
+FROM python:3.6
+WORKDIR /code
+COPY requirements.txt /requirements.txt
+RUN pip install -r /requirements.txt
+COPY . /code
+EXPOSE 5000
+CMD ["python3", "app.py"]
+```
+
+We assume this has been made into an image named `sto-img:1.0`
+and pushed to Dockerhub as `stlottini/sto-img:1.0`.
+
+### Application API
+
+This one builds on the previous ("low-level") API and offers
+a higher-level interface. Internally this will speak to the storage API
+without ever directly accessing the underlying files.
+
+Same structure as above, with same `requirements.txt` like this:
+```
+Flask==2.0.1
+requests==2.24.0
+```
+and `app.py`:
+```
+import os
+import requests
+from flask import Flask, jsonify
+
+storageAPI = os.environ['STO_API']
+
+app = Flask('api-img')
+
+
+@app.route('/createlist/<number>')
+def createlist(number):
+    items = requests.get(storageAPI + '/items').json()['items']
+    missing = [
+        ns
+        for ns in (
+            str(i)
+            for i in range(int(number))
+        )
+        if ns not in items
+    ]
+    createds = []
+    faileds = []
+    for m in missing:
+        creation = requests.put(
+            storageAPI + '/items/' + m
+        ).json()['created'][m]
+        if creation:
+            createds.append(m)
+        else:
+            faileds.append(m)
+    return jsonify({
+        'createds': createds,
+        'faileds': faileds,
+        'deleteds': [],
+    })
+
+
+@app.route('/clear')
+def clear():
+    items = requests.get(storageAPI + '/items').json()['items']
+    deleteds = []
+    faileds = []
+    for m in items:
+        deletion = requests.delete(
+            storageAPI + '/items/' + m
+        ).json()['deleted'][m]
+        if deletion:
+            deleteds.append(m)
+        else:
+            faileds.append(m)
+    return jsonify({
+        'createds': [],
+        'faileds': faileds,
+        'deleteds': deleteds,
+    })
+            
+
+app.run(host='0.0.0.0', port=5001)
+```
+
+behaviour/examples
+
+dockerfile
+
+env var req
+
+Assume this has been made into an image and deployed as `stlottini/api-img:1.1`.
+
+### run the whole thing (not containerized)
+
+### partial deploy and volume check
+
+### full deploy and functionality check

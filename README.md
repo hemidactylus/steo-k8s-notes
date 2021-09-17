@@ -6,9 +6,11 @@ miscellaneous notes and snippets while learning Kubernetes
 
 ### Reference courses
 
-KDD = "Kubernetes deep dive" (a cloud guru)
+KDD = ["Kubernetes deep dive"](https://acloudguru.com/course/kubernetes-deep-dive)
+(a cloud guru)
 
-KTHW = "Kubernetes the hard way" (a cloud guru)
+KTHW = ["Kubernetes the hard way"](https://acloudguru.com/course/kubernetes-the-hard-way)
+(a cloud guru)
 
 ### Topics
 
