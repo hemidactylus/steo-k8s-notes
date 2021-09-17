@@ -194,7 +194,8 @@ Should then, after installing, check with `minikube addons list`
 and enable it with `minikube addons enable metrics-server`.
 I could not make this work and abandoned the hope with Minikube.
 
-**I saw this work in the AWS EKS cluster only. See [here](eks.md) for details.**
+**I saw this work in the AWS EKS cluster only. See [here](eks.md)
+to see how it went.**
 
 _Note: `'namespaces'` are used here - but don't expect them to act as strong
 security boundaries, they are not: you can use them for bookkeeping,

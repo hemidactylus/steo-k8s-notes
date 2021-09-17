@@ -107,7 +107,7 @@ All right with the
     kubectl apply -f hpademo.yml
 
 But _beware_: according to [this document](https://docs.aws.amazon.com/eks/latest/userguide/metrics-server.html),
-the metrics server is not automatically installed in the cluster (see also [this page on HPA](https://docs.aws.amazon.com/eks/latest/userguide/horizontal-pod-autoscaler.html).
+the metrics server is not automatically installed in the cluster (see also [this page on HPA](https://docs.aws.amazon.com/eks/latest/userguide/horizontal-pod-autoscaler.html)).
 
 To install the metrics server, the doc above gives the command
 
