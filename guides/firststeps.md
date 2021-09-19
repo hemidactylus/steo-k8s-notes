@@ -643,6 +643,7 @@ Once this is applied, with
     kubectl apply -f deploy2.yaml
 
 the final test can be done, again querying the `out-svc` service in various ways:
+first and foremost, because this would be the "**actual production access to your system**",
 from your local machine, with:
 
     curl <node's IP>:31001/createlist/3   #  {"createds":["0","1","2"],"deleteds":[],"faileds":[]}
