@@ -5,7 +5,7 @@ to be able to finally test HPA and possibly CA.
 
 As usual with AWS, you end up in a jungle of IAM roles and permissions
 even for the simplest thing, with a matrioska structure of doc pages
-instructing you to create this and that IAM roles, etc etc.
+instructing you to create this and that IAM roles, etc etc - see Appendix here.
 
 I soon abandoned the idea of creating everything by hand (too many doc
 page tabs open) and went for the "easy" way.
@@ -32,6 +32,8 @@ Have `aws` CLI installed and set up on your machine and check who you are with
 
 What follows has been done as described in the doc
 [here](https://docs.aws.amazon.com/eks/latest/userguide/getting-started-eksctl.html).
+Also [this page](https://docs.aws.amazon.com/eks/latest/userguide/create-cluster.html)
+might be useful reference.
 
 Now it's time to install `eksctl`, see the linked doc.
 
@@ -393,3 +395,30 @@ Here is its (abridged) output:
     [...]
     2021-08-27 01:39:52 [ℹ]  will delete stack "eksctl-steocluster-cluster"
     2021-08-27 01:39:52 [✔]  all cluster resources were deleted
+
+#### Appendix. Failed attempt without eksctl
+
+Starting point:
+> I want to create an AWS EKS Kubernetes cluster and I want my local kubectl to access it
+
+EKS cluster must be created with a user able to provide access key (key/secret)
+
+1. Create EKS cluster: a simple UI action - takes 10+ minutes no matter what
+2. Configure the `aws` CLI (`ask configure`) configure: make sure it uses credentials of the same user who created cluster. Check with `aws eks list-clusters`
+3. Check, expecting a JSON in return, `aws eks get-token --cluster-name CLU_NAME`
+4. As given [here](https://docs.aws.amazon.com/eks/latest/userguide/create-kubeconfig.html),
+you can have the `aws` CLI to set up a user/cluster/context in your kubeconfig, so that then you can `use-context` that one:
+```
+aws eks update-kubeconfig --name steocluster
+# Added new context arn:aws:eks:us-east-1:052186248878:cluster/steocluster to /home/stefano/.kube/config
+```
+5. Switch to context with `kubectl config use-context arn:aws:eks:us-east-1:052186248878:cluster/steocluster`
+6. Finally one can do:
+```
+kubectl get svc
+#
+# Output is:
+# NAME         TYPE        CLUSTER-IP   EXTERNAL-IP   PORT(S)   AGE
+# kubernetes   ClusterIP   10.100.0.1   <none>        443/TCP   4m8s
+```
+7. But then there is a forest of troubles with IAM roles and permissions, and you need the `eksctl` CLI anyway. So I delete the cluster and head to [this page](https://docs.aws.amazon.com/eks/latest/userguide/create-cluster.html) for an "easy", eksctl-assisted all-in-one way to create the k8s cluster.
