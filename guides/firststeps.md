@@ -235,6 +235,11 @@ in K8s:
 - an "application API" facing the external world, which in turn will internally
   speak to the storage API.
 
+This schema highlights all components and how they relate to each other,
+including the key parts of the manifest that implement these relations:
+
+![schema](firststeps_images/architecture.png)
+
 The two APIs will run as deployments and will have each a service in front;
 moreover, the storage-api pods will share the volume, so that even if the pods
 are destroyed or re-created (failures, autoscaling, etc), the files
