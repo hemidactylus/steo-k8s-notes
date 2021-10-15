@@ -1,6 +1,6 @@
 # Steo K8s Notes
 
-miscellaneous notes and snippets while learning Kubernetes
+Miscellaneous notes and snippets while learning Kubernetes
 
 ![image](images/wannabe.png)
 
